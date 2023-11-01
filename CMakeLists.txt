@@ -28,15 +28,17 @@ link_directories(${PROJECT_NAME}
         ${PROJECT_SOURCE_DIR}/lib/cross_sockets
         ${PROJECT_SOURCE_DIR}/lib/soundio)
 
-add_executable(${PROJECT_NAME} main.c)
+FILE(GLOB INDEPENDENT_SRC src/*.c)
+
+add_executable(${PROJECT_NAME} ${INDEPENDENT_SRC})
 
 if (TARGET_IS_WINDOWS)
     target_link_libraries(${PROJECT_NAME} PRIVATE cross_sockets soundio)
 else ()
     target_link_libraries(${PROJECT_NAME} PRIVATE
             m
-            libcross_sockets.so
-            libsoundio.so.2.0.0)
+            cross_sockets
+            soundio)
 endif ()
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/include)
