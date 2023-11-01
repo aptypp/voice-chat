@@ -24,14 +24,19 @@ endif ()
 
 #END platform settings
 
-add_executable(app main.c)
+link_directories(${PROJECT_NAME}
+        ${PROJECT_SOURCE_DIR}/lib/cross_sockets
+        ${PROJECT_SOURCE_DIR}/lib/soundio)
+
+add_executable(${PROJECT_NAME} main.c)
 
 if (TARGET_IS_WINDOWS)
-    target_link_libraries(app PRIVATE ${CMAKE_SOURCE_DIR}/lib/cross_sockets/libcross_sockets.dll)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/lib/cross_sockets/libcross_sockets.dll)
 else ()
-    target_link_libraries(app PRIVATE ${CMAKE_SOURCE_DIR}/lib/cross_sockets/libcross_sockets.so)
+    target_link_libraries(${PROJECT_NAME} PRIVATE
+            m
+            libcross_sockets.so
+            libsoundio.so.2.0.0)
 endif ()
 
-message(${CMAKE_SOURCE_DIR}/lib/cross_sockets/libcross_sockets.so)
-
-target_include_directories(app PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/include)
