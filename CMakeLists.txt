@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.27)
-project(audio_chat C)
+project(voice_chat C)
 
 set(CMAKE_C_STANDARD 23)
 
@@ -24,10 +24,14 @@ endif ()
 
 #END platform settings
 
-add_executable(audio_chat main.c)
+add_executable(app main.c)
 
 if (TARGET_IS_WINDOWS)
-
-    target_link_libraries()
-
+    target_link_libraries(app PRIVATE ${CMAKE_SOURCE_DIR}/lib/cross_sockets/libcross_sockets.dll)
+else ()
+    target_link_libraries(app PRIVATE ${CMAKE_SOURCE_DIR}/lib/cross_sockets/libcross_sockets.so)
 endif ()
+
+message(${CMAKE_SOURCE_DIR}/lib/cross_sockets/libcross_sockets.so)
+
+target_include_directories(app PUBLIC ${CMAKE_SOURCE_DIR}/include)
