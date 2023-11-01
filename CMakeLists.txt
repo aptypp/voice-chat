@@ -31,7 +31,7 @@ link_directories(${PROJECT_NAME}
 add_executable(${PROJECT_NAME} main.c)
 
 if (TARGET_IS_WINDOWS)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/lib/cross_sockets/libcross_sockets.dll)
+    target_link_libraries(${PROJECT_NAME} PRIVATE cross_sockets soundio)
 else ()
     target_link_libraries(${PROJECT_NAME} PRIVATE
             m
