@@ -5,9 +5,30 @@
 #include "string_extension.h"
 #include "cross_sockets/cross_sockets.h"
 #include "cross_sockets/ip_address.h"
+#include "soundio/soundio.h"
+#include "logger/logger.h"
+#include "client/soundio_microphone.h"
+
 
 int main()
 {
+    int32_t errcode;
+
+    soundio_args_t soundio_args;
+
+    errcode = initialize_soundio(&soundio_args);
+
+    if (errcode != 0)
+    {
+        LOG_ERROR(stderr, "soundio initialization failed, error code: %d", errcode);
+        return -1;
+    }
+
+    while(true)
+    {
+
+    }
+
     cross_socket_initialize();
 
     uint64_t communication_socket = cross_socket_open_tcp();
@@ -28,5 +49,6 @@ int main()
     string_free(&response);
 
     cross_socket_cleanup();
+    cleanup_soundio(&soundio_args);
 }
 

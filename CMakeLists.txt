@@ -29,7 +29,8 @@ endif ()
 
 link_directories(${CLIENT_NAME}
         ${PROJECT_SOURCE_DIR}/lib/cross_sockets
-        ${PROJECT_SOURCE_DIR}/lib/soundio)
+        ${PROJECT_SOURCE_DIR}/lib/soundio
+        ${PROJECT_SOURCE_DIR}/lib/logger)
 
 FILE(GLOB CLIENT_SRC src/client/*)
 FILE(GLOB SERVER_SRC src/server/*)
@@ -40,12 +41,16 @@ FILE(GLOB SHARED_SRC src/shared/*)
 add_executable(${CLIENT_NAME} ${CLIENT_SRC} ${SHARED_SRC})
 
 if (TARGET_IS_WINDOWS)
-    target_link_libraries(${CLIENT_NAME} PRIVATE cross_sockets soundio)
+    target_link_libraries(${CLIENT_NAME} PRIVATE
+            libcross_sockets.a
+            libsoundio.a
+            logger.a)
 else ()
     target_link_libraries(${CLIENT_NAME} PRIVATE
             m
-            cross_sockets
-            soundio)
+            libcross_sockets.a
+            libsoundio.so.2.0.0
+            logger.a)
 endif ()
 
 target_include_directories(${CLIENT_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/include)
@@ -57,11 +62,14 @@ target_include_directories(${CLIENT_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/include)
 add_executable(${SERVER_NAME} ${SERVER_SRC} ${SHARED_SRC})
 
 if (TARGET_IS_WINDOWS)
-    target_link_libraries(${SERVER_NAME} PRIVATE cross_sockets)
+    target_link_libraries(${SERVER_NAME} PRIVATE
+            libcross_sockets.a
+            logger.a)
 else ()
     target_link_libraries(${SERVER_NAME} PRIVATE
             m
-            cross_sockets)
+            libcross_sockets.a
+            logger.a)
 endif ()
 
 target_include_directories(${SERVER_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/include)
