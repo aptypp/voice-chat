@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <memory.h>
+#include <unistd.h>
 #include "client/soundio_microphone.h"
 #include "soundio/soundio.h"
 #include "logger/logger.h"
@@ -416,4 +417,16 @@ void cleanup_soundio(soundio_args_t* soundio_args)
     soundio_device_unref(soundio_args->in_device);
     soundio_device_unref(soundio_args->out_device);
     soundio_destroy(soundio_args->soundio);
+}
+
+void* send_thread(void* args) {
+    sleep(1);
+
+    thread_args_t thread_args = *(thread_args_t*)args;
+
+    char* ptr = soundio_ring_buffer_read_ptr(thread_args.soundio_args->ring_buffer);
+
+    fprintf(stderr, "ptr: %s\n", ptr);
+
+    return nullptr;
 }

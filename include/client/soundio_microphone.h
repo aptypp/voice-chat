@@ -22,6 +22,11 @@ typedef struct soundio_args
     enum SoundIoFormat format;
 } soundio_args_t;
 
+typedef struct {
+    uint64_t socket;
+    soundio_args_t* soundio_args;
+} thread_args_t;
+
 
 int initialize_soundio(soundio_args_t* soundio_args);
 
@@ -32,5 +37,7 @@ void write_callback(struct SoundIoOutStream* outstream, int32_t frame_count_min,
 void underflow_callback(struct SoundIoOutStream* outstream);
 
 void cleanup_soundio(soundio_args_t* soundio_args);
+
+void* send_thread(void* args);
 
 #endif //VOICE_CHAT_SOUNDIO_MICROPHONE_H

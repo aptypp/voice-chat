@@ -42,8 +42,8 @@ add_executable(${CLIENT_NAME} ${CLIENT_SRC} ${SHARED_SRC})
 
 if (TARGET_IS_WINDOWS)
     target_link_libraries(${CLIENT_NAME} PRIVATE
-            libcross_sockets.a
-            libsoundio.a
+            cross_sockets
+            soundio
             logger.a)
 else ()
     target_link_libraries(${CLIENT_NAME} PRIVATE

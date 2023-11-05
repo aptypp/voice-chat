@@ -8,6 +8,7 @@
 #include "soundio/soundio.h"
 #include "logger/logger.h"
 #include "client/soundio_microphone.h"
+#include <pthread.h>
 
 
 int main()
@@ -24,6 +25,19 @@ int main()
         return -1;
     }
 
+    uint64_t send_socket = cross_socket_open_udp();
+
+    cross_socket_bind(send_socket, 12345);
+
+    pthread_t send;
+
+    thread_args_t send_args;
+
+    send_args.socket = send_socket;
+    send_args.soundio_args = &soundio_args;
+
+    pthread_create(&send, nullptr, send_thread, (void*)&send_args);
+
     while(true)
     {
 
@@ -31,22 +45,6 @@ int main()
 
     cross_socket_initialize();
 
-    uint64_t communication_socket = cross_socket_open_tcp();
-
-    uint32_t server_ip_address = string_address_to_integer("127.0.0.1");
-
-    cross_socket_connect_tcp(communication_socket, server_ip_address, 12345);
-
-    String hello_message = string_new("Hello, my name is Client!");
-    cross_socket_send_tcp(communication_socket, hello_message.buffer, hello_message.length);
-
-    String response = string_new_capacity(50);
-
-    cross_socket_receive_tcp(communication_socket, response.buffer, response.capacity);
-
-    printf("%s%s", "Message from server: ", response.buffer);
-
-    string_free(&response);
 
     cross_socket_cleanup();
     cleanup_soundio(&soundio_args);
