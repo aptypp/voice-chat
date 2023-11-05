@@ -10,6 +10,8 @@
 #include "logger/logger.h"
 #include "stdint.h"
 #include "math_extension.h"
+#include "cross_sockets/cross_sockets.h"
+#include "cross_sockets/ip_address.h"
 
 int initialize_soundio(soundio_args_t* soundio_args)
 {
@@ -190,24 +192,31 @@ int initialize_soundio(soundio_args_t* soundio_args)
 
     int32_t capacity = (int32_t) (soundio_args->microphone_latency * 2 * soundio_args->instream->sample_rate * soundio_args->instream->bytes_per_frame);
 
-    soundio_args->ring_buffer = soundio_ring_buffer_create(soundio_args->soundio, capacity);
+    soundio_args->in_buffer = soundio_ring_buffer_create(soundio_args->soundio, capacity);
+    soundio_args->out_buffer = soundio_ring_buffer_create(soundio_args->soundio, capacity);
 
-    soundio_args->instream->userdata = soundio_args->ring_buffer;
-    soundio_args->outstream->userdata = soundio_args->ring_buffer;
+    soundio_args->instream->userdata = soundio_args->in_buffer;
+    soundio_args->outstream->userdata = soundio_args->out_buffer;
 
-    if (soundio_args->ring_buffer == nullptr)
+    if (soundio_args->in_buffer == nullptr)
     {
         LOG_ERROR(stderr, "unable to create ring buffer: out of memory");
         return -14;
     }
 
-    char* buf = soundio_ring_buffer_write_ptr(soundio_args->ring_buffer);
+    if (soundio_args->out_buffer == nullptr)
+    {
+        LOG_ERROR(stderr, "unable to create ring buffer: out of memory");
+        return -14;
+    }
+
+    char* in_buffer_pointer = soundio_ring_buffer_write_ptr(soundio_args->in_buffer);
 
     int32_t fill_count = (int32_t) (soundio_args->microphone_latency * soundio_args->outstream->sample_rate * soundio_args->outstream->bytes_per_frame);
 
-    memset(buf, 0, fill_count);
+    memset(in_buffer_pointer, 0, fill_count);
 
-    soundio_ring_buffer_advance_write_ptr(soundio_args->ring_buffer, fill_count);
+    soundio_ring_buffer_advance_write_ptr(soundio_args->in_buffer, fill_count);
 
     errcode = soundio_instream_start(soundio_args->instream);
 
@@ -407,7 +416,7 @@ void write_callback(struct SoundIoOutStream* outstream, int32_t frame_count_min,
 void underflow_callback(struct SoundIoOutStream* outstream)
 {
     static int32_t count = 0;
-    LOG_ERROR(stderr, "underflow %d\n", ++count);
+    //LOG_ERROR(stderr, "underflow %d\n", ++count);
 }
 
 void cleanup_soundio(soundio_args_t* soundio_args)
@@ -419,14 +428,53 @@ void cleanup_soundio(soundio_args_t* soundio_args)
     soundio_destroy(soundio_args->soundio);
 }
 
-void* send_thread(void* args) {
-    sleep(1);
-
+void* send_thread_callback(void* args) {
     thread_args_t thread_args = *(thread_args_t*)args;
 
-    char* ptr = soundio_ring_buffer_read_ptr(thread_args.soundio_args->ring_buffer);
+    uint32_t in_address = string_address_to_integer("127.0.0.1");
+    uint16_t in_port = 12345;
 
-    fprintf(stderr, "ptr: %s\n", ptr);
+    while (true) {
+        soundio_flush_events(thread_args.soundio_args->soundio);
+        sleep(1);
+
+        int fill_bytes = soundio_ring_buffer_fill_count(thread_args.soundio_args->in_buffer);
+        char* read_buffer_pointer = soundio_ring_buffer_read_ptr(thread_args.soundio_args->in_buffer);
+
+        fprintf(stderr, "send - fill_bytes: %d\n", fill_bytes);
+        fprintf(stderr, "send - ptr: %s\n", read_buffer_pointer);
+
+        cross_socket_send_udp(thread_args.socket, (const char*)&fill_bytes, sizeof(int), in_address, in_port);
+        cross_socket_send_udp(thread_args.socket, read_buffer_pointer, fill_bytes, in_address, in_port);
+
+        soundio_ring_buffer_advance_read_ptr(thread_args.soundio_args->in_buffer, fill_bytes);
+    }
+
+    return nullptr;
+}
+
+void* receive_thread_callback(void* args) {
+    thread_args_t thread_args = *(thread_args_t*)args;
+
+    uint32_t out_address;
+    uint16_t out_port;
+
+    while (true) {
+        sleep(1);
+        char fill_bytes[sizeof(int)];
+
+        cross_socket_receive_udp(thread_args.socket, fill_bytes, sizeof(int), &out_address, &out_port);
+
+
+
+        char* write_buffer_pointer = soundio_ring_buffer_read_ptr(thread_args.soundio_args->out_buffer);
+
+        //cross_socket_receive_udp(thread_args.socket, write_buffer_pointer, fill_bytes, &out_address, &out_port);
+
+        fprintf(stderr, "receive - out_address: %s\n", integer_address_to_string(out_address));
+        fprintf(stderr, "receive - fill_bytes: %s\n", fill_bytes);
+        fprintf(stderr, "receive - data: %s\n", write_buffer_pointer);
+    }
 
     return nullptr;
 }

@@ -16,31 +16,24 @@ typedef struct soundio_args
     struct SoundIoInStream* instream;
     struct SoundIoOutStream* outstream;
     struct SoundIoRingBuffer* in_buffer;
-    char* out_buffer;
+    struct SoundIoRingBuffer* out_buffer;
     const struct SoundIoChannelLayout* channel_layout;
     int32_t sample_rate;
     double microphone_latency;
     enum SoundIoFormat format;
 } soundio_args_t;
 
-typedef struct
-{
+typedef struct {
     uint64_t socket;
     soundio_args_t* soundio_args;
 } thread_args_t;
 
-typedef struct out_args
-{
-    char* out_buffer;
-    struct SoundIoRingBuffer* in_buffer;
-} out_args_t;
-
 
 int initialize_soundio(soundio_args_t* soundio_args);
 
-void in_callback(struct SoundIoInStream* instream, int32_t frame_count_min, int32_t frame_count_max);
+void read_callback(struct SoundIoInStream* instream, int32_t frame_count_min, int32_t frame_count_max);
 
-void out_callback(struct SoundIoOutStream* outstream, int32_t frame_count_min, int32_t frame_count_max);
+void write_callback(struct SoundIoOutStream* outstream, int32_t frame_count_min, int32_t frame_count_max);
 
 void underflow_callback(struct SoundIoOutStream* outstream);
 

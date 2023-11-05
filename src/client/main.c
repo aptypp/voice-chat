@@ -25,18 +25,22 @@ int main()
         return -1;
     }
 
-    uint64_t send_socket = cross_socket_open_udp();
+    uint64_t socket = cross_socket_open_udp();
 
-    cross_socket_bind(send_socket, 12345);
+    cross_socket_bind(socket, 12345);
 
     pthread_t send;
-
     thread_args_t send_args;
-
-    send_args.socket = send_socket;
+    send_args.socket = socket;
     send_args.soundio_args = &soundio_args;
+    pthread_create(&send, nullptr, send_thread_callback, (void*) &send_args);
 
-    pthread_create(&send, nullptr, send_thread, (void*)&send_args);
+    pthread_t receive;
+    thread_args_t receive_args;
+    receive_args.socket = socket;
+    receive_args.soundio_args = &soundio_args;
+    pthread_create(&receive, nullptr, receive_thread_callback, (void*) &receive_args);
+
 
     while(true)
     {
