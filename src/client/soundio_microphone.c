@@ -446,7 +446,7 @@ void* send_thread_callback(void* args) {
         cross_socket_send_udp(thread_args.socket, (const char*)&fill_bytes, sizeof(int), in_address, in_port);
 
         for (int i = 0; i < fill_bytes; i += fill_bytes / 4) {
-            cross_socket_send_udp(thread_args.socket, read_buffer_pointer + i, i + fill_bytes / 4, in_address, in_port);
+            cross_socket_send_udp(thread_args.socket, read_buffer_pointer + i, fill_bytes / 4, in_address, in_port);
 
             fprintf(stderr, "ERROR: %s\n", get_error());
         }
@@ -465,6 +465,7 @@ void* receive_thread_callback(void* args) {
     uint16_t out_port;
 
     while (true) {
+        soundio_flush_events(thread_args.soundio_args->soundio);
         int fill_bytes;
 
         cross_socket_receive_udp(thread_args.socket, (char*)&fill_bytes, sizeof(int), &out_address, &out_port);
@@ -472,9 +473,9 @@ void* receive_thread_callback(void* args) {
         char* write_buffer_pointer = soundio_ring_buffer_read_ptr(thread_args.soundio_args->out_buffer);
 
         for (int i = 0; i < fill_bytes; i += fill_bytes / 4) {
-            cross_socket_receive_udp(thread_args.socket, write_buffer_pointer + i, i + fill_bytes / 4, &out_address, &out_port);
+            cross_socket_receive_udp(thread_args.socket, write_buffer_pointer + i, fill_bytes / 4, &out_address, &out_port);
 
-            fprintf(stderr, "ERROR: %s\n", get_error());
+            fprintf(stderr, "i: %d\n", i);
         }
 
         fprintf(stderr, "receive - out_address: %s\n", integer_address_to_string(out_address));
