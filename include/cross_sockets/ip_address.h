@@ -5,7 +5,7 @@
 #ifndef CROSS_SOCKETS_IP_ADDRESS_H
 #define CROSS_SOCKETS_IP_ADDRESS_H
 
-#include "string_extension.h"
+#include <string_extension.h>
 #include <stdint.h>
 
 uint32_t string_address_to_integer(const char* address);

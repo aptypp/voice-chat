@@ -49,8 +49,9 @@ else ()
     target_link_libraries(${CLIENT_NAME} PRIVATE
             m
             libcross_sockets.a
-            libsoundio.so.2.0.0
-            logger.a)
+            libsoundio.a
+            logger.a
+            pulse)
 endif ()
 
 target_include_directories(${CLIENT_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/include)

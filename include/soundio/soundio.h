@@ -561,14 +561,14 @@ struct SoundIoOutStream {
     /// This optional callback happens when the sound device runs out of
     /// buffered audio data to play. After this occurs, the outstream waits
     /// until the buffer is full to resume playback.
-    /// This is called from the SoundIoOutStream::write_callback thread context.
+    /// This is called from the SoundIoOutStream::out_callback thread context.
     void (*underflow_callback)(struct SoundIoOutStream *);
     /// Optional callback. `err` is always SoundIoErrorStreaming.
     /// SoundIoErrorStreaming is an unrecoverable error. The stream is in an
     /// invalid state and must be destroyed.
     /// If you do not supply error_callback, the default callback will print
     /// a message to stderr and then call `abort`.
-    /// This is called from the SoundIoOutStream::write_callback thread context.
+    /// This is called from the SoundIoOutStream::out_callback thread context.
     void (*error_callback)(struct SoundIoOutStream *, int err);
 
     /// Optional: Name of the stream. Defaults to "SoundIoOutStream"
@@ -632,7 +632,7 @@ struct SoundIoInStream {
     /// In this function call ::soundio_instream_begin_read and
     /// ::soundio_instream_end_read as many times as necessary to read at
     /// minimum `frame_count_min` frames and at maximum `frame_count_max`
-    /// frames. If you return from read_callback without having read
+    /// frames. If you return from in_callback without having read
     /// `frame_count_min`, the frames will be dropped. `frame_count_max` is how
     /// many frames are available to read.
     ///
@@ -645,14 +645,14 @@ struct SoundIoInStream {
     /// This optional callback happens when the sound device buffer is full,
     /// yet there is more captured audio to put in it.
     /// This is never fired for PulseAudio.
-    /// This is called from the SoundIoInStream::read_callback thread context.
+    /// This is called from the SoundIoInStream::in_callback thread context.
     void (*overflow_callback)(struct SoundIoInStream *);
     /// Optional callback. `err` is always SoundIoErrorStreaming.
     /// SoundIoErrorStreaming is an unrecoverable error. The stream is in an
     /// invalid state and must be destroyed.
     /// If you do not supply `error_callback`, the default callback will print
     /// a message to stderr and then abort().
-    /// This is called from the SoundIoInStream::read_callback thread context.
+    /// This is called from the SoundIoInStream::in_callback thread context.
     void (*error_callback)(struct SoundIoInStream *, int err);
 
     /// Optional: Name of the stream. Defaults to "SoundIoInStream";
@@ -776,7 +776,7 @@ SOUNDIO_EXPORT void soundio_wakeup(struct SoundIo *soundio);
 /// SoundIo::on_devices_change callback.
 ///
 /// This can be called from any thread context except for
-/// SoundIoOutStream::write_callback and SoundIoInStream::read_callback
+/// SoundIoOutStream::out_callback and SoundIoInStream::in_callback
 SOUNDIO_EXPORT void soundio_force_device_scan(struct SoundIo *soundio);
 
 
@@ -927,7 +927,7 @@ SOUNDIO_EXPORT int soundio_device_nearest_sample_rate(struct SoundIoDevice *devi
 /// Returns `NULL` if and only if memory could not be allocated.
 /// See also ::soundio_outstream_destroy
 SOUNDIO_EXPORT struct SoundIoOutStream *soundio_outstream_create(struct SoundIoDevice *device);
-/// You may not call this function from the SoundIoOutStream::write_callback thread context.
+/// You may not call this function from the SoundIoOutStream::out_callback thread context.
 SOUNDIO_EXPORT void soundio_outstream_destroy(struct SoundIoOutStream *outstream);
 
 /// After you call this function, SoundIoOutStream::software_latency is set to
@@ -953,9 +953,9 @@ SOUNDIO_EXPORT void soundio_outstream_destroy(struct SoundIoOutStream *outstream
 ///   compatible with the chosen device.
 SOUNDIO_EXPORT int soundio_outstream_open(struct SoundIoOutStream *outstream);
 
-/// After you call this function, SoundIoOutStream::write_callback will be called.
+/// After you call this function, SoundIoOutStream::out_callback will be called.
 ///
-/// This function might directly call SoundIoOutStream::write_callback.
+/// This function might directly call SoundIoOutStream::out_callback.
 ///
 /// Possible errors:
 /// * #SoundIoErrorStreaming
@@ -975,8 +975,8 @@ SOUNDIO_EXPORT int soundio_outstream_start(struct SoundIoOutStream *outstream);
 ///    than or equal to the value provided.
 /// It is your responsibility to call this function exactly as many times as
 /// necessary to meet the `frame_count_min` and `frame_count_max` criteria from
-/// SoundIoOutStream::write_callback.
-/// You must call this function only from the SoundIoOutStream::write_callback thread context.
+/// SoundIoOutStream::out_callback.
+/// You must call this function only from the SoundIoOutStream::out_callback thread context.
 /// After calling this function, write data to `areas` and then call
 /// ::soundio_outstream_end_write.
 /// If this function returns an error, do not call ::soundio_outstream_end_write.
@@ -998,7 +998,7 @@ SOUNDIO_EXPORT int soundio_outstream_begin_write(struct SoundIoOutStream *outstr
         struct SoundIoChannelArea **areas, int *frame_count);
 
 /// Commits the write that you began with ::soundio_outstream_begin_write.
-/// You must call this function only from the SoundIoOutStream::write_callback thread context.
+/// You must call this function only from the SoundIoOutStream::out_callback thread context.
 ///
 /// Possible errors:
 /// * #SoundIoErrorStreaming
@@ -1024,12 +1024,12 @@ SOUNDIO_EXPORT int soundio_outstream_end_write(struct SoundIoOutStream *outstrea
 SOUNDIO_EXPORT int soundio_outstream_clear_buffer(struct SoundIoOutStream *outstream);
 
 /// If the underlying backend and device support pausing, this pauses the
-/// stream. SoundIoOutStream::write_callback may be called a few more times if
+/// stream. SoundIoOutStream::out_callback may be called a few more times if
 /// the buffer is not full.
 /// Pausing might put the hardware into a low power state which is ideal if your
 /// software is silent for some time.
 /// This function may be called from any thread context, including
-/// SoundIoOutStream::write_callback.
+/// SoundIoOutStream::out_callback.
 /// Pausing when already paused or unpausing when already unpaused has no
 /// effect and returns #SoundIoErrorNone.
 ///
@@ -1051,7 +1051,7 @@ SOUNDIO_EXPORT int soundio_outstream_pause(struct SoundIoOutStream *outstream, b
 /// this gives you the number of seconds that the next frame written will take
 /// to become audible.
 ///
-/// This function must be called only from within SoundIoOutStream::write_callback.
+/// This function must be called only from within SoundIoOutStream::out_callback.
 ///
 /// Possible errors:
 /// * #SoundIoErrorStreaming
@@ -1069,7 +1069,7 @@ SOUNDIO_EXPORT int soundio_outstream_set_volume(struct SoundIoOutStream *outstre
 /// Returns `NULL` if and only if memory could not be allocated.
 /// See also ::soundio_instream_destroy
 SOUNDIO_EXPORT struct SoundIoInStream *soundio_instream_create(struct SoundIoDevice *device);
-/// You may not call this function from SoundIoInStream::read_callback.
+/// You may not call this function from SoundIoInStream::in_callback.
 SOUNDIO_EXPORT void soundio_instream_destroy(struct SoundIoInStream *instream);
 
 /// After you call this function, SoundIoInStream::software_latency is set to the correct
@@ -1092,7 +1092,7 @@ SOUNDIO_EXPORT void soundio_instream_destroy(struct SoundIoInStream *instream);
 /// * #SoundIoErrorIncompatibleDevice
 SOUNDIO_EXPORT int soundio_instream_open(struct SoundIoInStream *instream);
 
-/// After you call this function, SoundIoInStream::read_callback will be called.
+/// After you call this function, SoundIoInStream::in_callback will be called.
 ///
 /// Possible errors:
 /// * #SoundIoErrorBackendDisconnected
@@ -1111,12 +1111,12 @@ SOUNDIO_EXPORT int soundio_instream_start(struct SoundIoInStream *instream);
 /// * `frame_count` - (in/out) - Provide the number of frames you want to read;
 ///   returns the number of frames you can actually read. The returned value
 ///   will always be less than or equal to the provided value. If the provided
-///   value is less than `frame_count_min` from SoundIoInStream::read_callback this function
+///   value is less than `frame_count_min` from SoundIoInStream::in_callback this function
 ///   returns with #SoundIoErrorInvalid.
 /// It is your responsibility to call this function no more and no fewer than the
 /// correct number of times according to the `frame_count_min` and
-/// `frame_count_max` criteria from SoundIoInStream::read_callback.
-/// You must call this function only from the SoundIoInStream::read_callback thread context.
+/// `frame_count_max` criteria from SoundIoInStream::in_callback.
+/// You must call this function only from the SoundIoInStream::in_callback thread context.
 /// After calling this function, read data from `areas` and then use
 /// ::soundio_instream_end_read` to actually remove the data from the buffer
 /// and move the read index forward. ::soundio_instream_end_read should not be
@@ -1134,7 +1134,7 @@ SOUNDIO_EXPORT int soundio_instream_begin_read(struct SoundIoInStream *instream,
         struct SoundIoChannelArea **areas, int *frame_count);
 /// This will drop all of the frames from when you called
 /// ::soundio_instream_begin_read.
-/// You must call this function only from the SoundIoInStream::read_callback thread context.
+/// You must call this function only from the SoundIoInStream::in_callback thread context.
 /// You must call this function only after a successful call to
 /// ::soundio_instream_begin_read.
 ///
@@ -1143,7 +1143,7 @@ SOUNDIO_EXPORT int soundio_instream_begin_read(struct SoundIoInStream *instream,
 SOUNDIO_EXPORT int soundio_instream_end_read(struct SoundIoInStream *instream);
 
 /// If the underyling device supports pausing, this pauses the stream and
-/// prevents SoundIoInStream::read_callback from being called. Otherwise this returns
+/// prevents SoundIoInStream::in_callback from being called. Otherwise this returns
 /// #SoundIoErrorIncompatibleDevice.
 /// This function may be called from any thread.
 /// Pausing when already paused or unpausing when already unpaused has no
@@ -1159,7 +1159,7 @@ SOUNDIO_EXPORT int soundio_instream_pause(struct SoundIoInStream *instream, bool
 /// captured will take to arrive in the buffer, plus the amount of time that is
 /// represented in the buffer. This includes both software and hardware latency.
 ///
-/// This function must be called only from within SoundIoInStream::read_callback.
+/// This function must be called only from within SoundIoInStream::in_callback.
 ///
 /// Possible errors:
 /// * #SoundIoErrorStreaming
