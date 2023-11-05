@@ -25,6 +25,8 @@ int main()
         return -1;
     }
 
+    cross_socket_initialize();
+
     uint64_t socket = cross_socket_open_udp();
 
     cross_socket_bind(socket, 12345);
@@ -46,8 +48,6 @@ int main()
     {
 
     }
-
-    cross_socket_initialize();
 
 
     cross_socket_cleanup();
