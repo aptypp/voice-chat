@@ -436,7 +436,6 @@ void* send_thread_callback(void* args) {
 
     while (true) {
         soundio_flush_events(thread_args.soundio_args->soundio);
-        sleep(1);
 
         int fill_bytes = soundio_ring_buffer_fill_count(thread_args.soundio_args->in_buffer);
         char* read_buffer_pointer = soundio_ring_buffer_read_ptr(thread_args.soundio_args->in_buffer);
@@ -445,9 +444,13 @@ void* send_thread_callback(void* args) {
         fprintf(stderr, "send - ptr: %s\n", read_buffer_pointer);
 
         cross_socket_send_udp(thread_args.socket, (const char*)&fill_bytes, sizeof(int), in_address, in_port);
-        cross_socket_send_udp(thread_args.socket, read_buffer_pointer, fill_bytes / 4, in_address, in_port);
 
-        fprintf(stderr, "ERROR: %s\n", get_error());
+        for (int i = 0; i < fill_bytes; i += fill_bytes / 4) {
+            cross_socket_send_udp(thread_args.socket, read_buffer_pointer + i, i + fill_bytes / 4, in_address, in_port);
+
+            fprintf(stderr, "ERROR: %s\n", get_error());
+        }
+
 
         soundio_ring_buffer_advance_read_ptr(thread_args.soundio_args->in_buffer, fill_bytes);
     }
@@ -462,14 +465,17 @@ void* receive_thread_callback(void* args) {
     uint16_t out_port;
 
     while (true) {
-        sleep(1);
         int fill_bytes;
 
         cross_socket_receive_udp(thread_args.socket, (char*)&fill_bytes, sizeof(int), &out_address, &out_port);
 
         char* write_buffer_pointer = soundio_ring_buffer_read_ptr(thread_args.soundio_args->out_buffer);
 
-        cross_socket_receive_udp(thread_args.socket, write_buffer_pointer, fill_bytes, &out_address, &out_port);
+        for (int i = 0; i < fill_bytes; i += fill_bytes / 4) {
+            cross_socket_receive_udp(thread_args.socket, write_buffer_pointer + i, i + fill_bytes / 4, &out_address, &out_port);
+
+            fprintf(stderr, "ERROR: %s\n", get_error());
+        }
 
         fprintf(stderr, "receive - out_address: %s\n", integer_address_to_string(out_address));
         fprintf(stderr, "receive - fill_bytes: %d\n", fill_bytes);
