@@ -195,8 +195,8 @@ int initialize_soundio(soundio_args_t* soundio_args)
     soundio_args->in_buffer = soundio_ring_buffer_create(soundio_args->soundio, capacity);
     soundio_args->out_buffer = soundio_ring_buffer_create(soundio_args->soundio, capacity);
 
-    soundio_args->instream->userdata = soundio_args->in_buffer;
-    soundio_args->outstream->userdata = soundio_args->out_buffer;
+    soundio_args->instream->userdata = soundio_args;
+    soundio_args->outstream->userdata = soundio_args;
 
     if (soundio_args->in_buffer == nullptr)
     {
@@ -239,7 +239,8 @@ int initialize_soundio(soundio_args_t* soundio_args)
 
 void read_callback(struct SoundIoInStream* instream, int32_t frame_count_min, int32_t frame_count_max)
 {
-    struct SoundIoRingBuffer* ring_buffer = (struct SoundIoRingBuffer*) instream->userdata;
+    soundio_args_t soundio_args = *(soundio_args_t*)instream->userdata;
+    struct SoundIoRingBuffer* ring_buffer = soundio_args.in_buffer;
 
     struct SoundIoChannelArea* areas;
     int32_t errcode;
@@ -313,7 +314,8 @@ void read_callback(struct SoundIoInStream* instream, int32_t frame_count_min, in
 
 void write_callback(struct SoundIoOutStream* outstream, int32_t frame_count_min, int32_t frame_count_max)
 {
-    struct SoundIoRingBuffer* ring_buffer = (struct SoundIoRingBuffer*) outstream->userdata;
+    soundio_args_t soundio_args = *(soundio_args_t*)outstream->userdata;
+    struct SoundIoRingBuffer* ring_buffer = soundio_args.out_buffer;
 
     struct SoundIoChannelArea* areas;
     int32_t frames_left;
@@ -428,6 +430,8 @@ void cleanup_soundio(soundio_args_t* soundio_args)
     soundio_destroy(soundio_args->soundio);
 }
 
+#define PACKET_SIZE 60 * 1024
+
 void* send_thread_callback(void* args) {
     thread_args_t thread_args = *(thread_args_t*)args;
 
@@ -435,24 +439,19 @@ void* send_thread_callback(void* args) {
     uint16_t in_port = 12345;
 
     while (true) {
-        soundio_flush_events(thread_args.soundio_args->soundio);
-
         int fill_bytes = soundio_ring_buffer_fill_count(thread_args.soundio_args->in_buffer);
         char* read_buffer_pointer = soundio_ring_buffer_read_ptr(thread_args.soundio_args->in_buffer);
 
-        fprintf(stderr, "send - fill_bytes: %d\n", fill_bytes);
-        fprintf(stderr, "send - ptr: %s\n", read_buffer_pointer);
+        while (fill_bytes > PACKET_SIZE) {
+            int packet_size = PACKET_SIZE;
 
-        cross_socket_send_udp(thread_args.socket, (const char*)&fill_bytes, sizeof(int), in_address, in_port);
-
-        for (int i = 0; i < fill_bytes; i += fill_bytes / 4) {
-            cross_socket_send_udp(thread_args.socket, read_buffer_pointer + i, fill_bytes / 4, in_address, in_port);
-
-            fprintf(stderr, "ERROR: %s\n", get_error());
+            cross_socket_send_udp(thread_args.socket, read_buffer_pointer, PACKET_SIZE, in_address, in_port);
+            soundio_ring_buffer_advance_read_ptr(thread_args.soundio_args->in_buffer, PACKET_SIZE);
+            fill_bytes -= PACKET_SIZE;
         }
 
-
-        soundio_ring_buffer_advance_read_ptr(thread_args.soundio_args->in_buffer, fill_bytes);
+        fprintf(stderr, "send - fill_bytes: %d\n", fill_bytes);
+        fprintf(stderr, "send - ptr: %s\n", read_buffer_pointer);
     }
 
     return nullptr;
@@ -465,24 +464,15 @@ void* receive_thread_callback(void* args) {
     uint16_t out_port;
 
     while (true) {
-        soundio_flush_events(thread_args.soundio_args->soundio);
-        int fill_bytes;
-
-        cross_socket_receive_udp(thread_args.socket, (char*)&fill_bytes, sizeof(int), &out_address, &out_port);
-
         char* write_buffer_pointer = soundio_ring_buffer_read_ptr(thread_args.soundio_args->out_buffer);
 
-        for (int i = 0; i < fill_bytes; i += fill_bytes / 4) {
-            cross_socket_receive_udp(thread_args.socket, write_buffer_pointer + i, fill_bytes / 4, &out_address, &out_port);
-
-            fprintf(stderr, "i: %d\n", i);
-        }
+        cross_socket_receive_udp(thread_args.socket, write_buffer_pointer, PACKET_SIZE, &out_address, &out_port);
 
         fprintf(stderr, "receive - out_address: %s\n", integer_address_to_string(out_address));
-        fprintf(stderr, "receive - fill_bytes: %d\n", fill_bytes);
+        fprintf(stderr, "receive - fill_bytes: %d\n", PACKET_SIZE);
         fprintf(stderr, "receive - data: %s\n", write_buffer_pointer);
 
-        soundio_ring_buffer_advance_write_ptr(thread_args.soundio_args->out_buffer, fill_bytes);
+        soundio_ring_buffer_advance_write_ptr(thread_args.soundio_args->out_buffer, PACKET_SIZE);
     }
 
     return nullptr;

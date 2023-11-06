@@ -6,6 +6,7 @@
 #define VOICE_CHAT_SOUNDIO_MICROPHONE_H
 
 #include <stdint.h>
+#include <pthread.h>
 #include "soundio/soundio.h"
 
 typedef struct soundio_args
