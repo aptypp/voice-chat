@@ -29,7 +29,6 @@ endif ()
 
 link_directories(${CLIENT_NAME}
         ${PROJECT_SOURCE_DIR}/lib/cross_sockets
-        ${PROJECT_SOURCE_DIR}/lib/soundio
         ${PROJECT_SOURCE_DIR}/lib/logger)
 
 FILE(GLOB CLIENT_SRC src/client/*)
@@ -38,18 +37,17 @@ FILE(GLOB SHARED_SRC src/shared/*)
 
 #START CLIENT
 
-add_executable(${CLIENT_NAME} ${CLIENT_SRC} ${SHARED_SRC})
+add_executable(${CLIENT_NAME} ${CLIENT_SRC} ${SHARED_SRC}
+        include/miniaudio.h)
 
 if (TARGET_IS_WINDOWS)
     target_link_libraries(${CLIENT_NAME} PRIVATE
             cross_sockets
-            soundio
             logger.a)
 else ()
     target_link_libraries(${CLIENT_NAME} PRIVATE
             m
             libcross_sockets.a
-            libsoundio.a
             logger.a
             pulse)
 endif ()
