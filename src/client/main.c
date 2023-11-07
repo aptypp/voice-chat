@@ -1,58 +1,55 @@
-#define MA_NO_DECODING
-#define MA_NO_ENCODING
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio.h"
 
 #include <stdio.h>
 
-#define DEVICE_FORMAT       ma_format_f32
-#define DEVICE_CHANNELS     2
-#define DEVICE_SAMPLE_RATE  48000
+#ifdef __EMSCRIPTEN__
+void main_loop__em()
+{
+}
+#endif
 
 void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
 {
-    ma_waveform* pSineWave;
+    MA_ASSERT(pDevice->capture.format == pDevice->playback.format);
+    MA_ASSERT(pDevice->capture.channels == pDevice->playback.channels);
 
-
-    pSineWave = (ma_waveform*)pDevice->pUserData;
-
-    ma_waveform_read_pcm_frames(pSineWave, pOutput, frameCount, NULL);
-
-    (void)pInput;   /* Unused. */
+    /* In this example the format and channel count are the same for both input and output which means we can just memcpy(). */
+    MA_COPY_MEMORY(pOutput, pInput, frameCount * ma_get_bytes_per_frame(pDevice->capture.format, pDevice->capture.channels));
 }
 
 int main(int argc, char** argv)
 {
-    ma_waveform sineWave;
+    ma_result result;
     ma_device_config deviceConfig;
     ma_device device;
-    ma_waveform_config sineWaveConfig;
 
-    deviceConfig = ma_device_config_init(ma_device_type_playback);
-    deviceConfig.playback.format   = DEVICE_FORMAT;
-    deviceConfig.playback.channels = DEVICE_CHANNELS;
-    deviceConfig.sampleRate        = DEVICE_SAMPLE_RATE;
-    deviceConfig.dataCallback      = data_callback;
-    deviceConfig.pUserData         = &sineWave;
-
-    if (ma_device_init(NULL, &deviceConfig, &device) != MA_SUCCESS) {
-        printf("Failed to open playback device.\n");
-        return -4;
+    deviceConfig = ma_device_config_init(ma_device_type_duplex);
+    deviceConfig.capture.pDeviceID  = NULL;
+    deviceConfig.capture.format     = ma_format_s16;
+    deviceConfig.capture.channels   = 2;
+    deviceConfig.capture.shareMode  = ma_share_mode_shared;
+    deviceConfig.playback.pDeviceID = NULL;
+    deviceConfig.playback.format    = ma_format_s16;
+    deviceConfig.playback.channels  = 2;
+    deviceConfig.dataCallback       = data_callback;
+    result = ma_device_init(NULL, &deviceConfig, &device);
+    if (result != MA_SUCCESS) {
+        return result;
     }
 
-    printf("Device Name: %s\n", device.playback.name);
+#ifdef __EMSCRIPTEN__
+    getchar();
+#endif
 
-    sineWaveConfig = ma_waveform_config_init(device.playback.format, device.playback.channels, device.sampleRate, ma_waveform_type_sine, 0.2, 220);
-    ma_waveform_init(&sineWaveConfig, &sineWave);
+    ma_device_start(&device);
 
-    if (ma_device_start(&device) != MA_SUCCESS) {
-        printf("Failed to start playback device.\n");
-        ma_device_uninit(&device);
-        return -5;
-    }
-
+#ifdef __EMSCRIPTEN__
+    emscripten_set_main_loop(main_loop__em, 0, 1);
+#else
     printf("Press Enter to quit...\n");
     getchar();
+#endif
 
     ma_device_uninit(&device);
 
